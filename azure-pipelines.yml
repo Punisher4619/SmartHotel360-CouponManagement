@@ -36,22 +36,36 @@
             settings:
               java_container: tomcat
               java_container_version: 9.0
-
-trigger:
-- master
-
-pool:
-  vmImage: 'ubuntu-16.04' # other options: 'macOS-10.14', 'vs2017-win2016'
-
-
-steps:
-- task: Maven@3
-  inputs:
-    mavenPomFile: 'pom.xml'
-    mavenOptions: '-Xmx3072m'
-    javaHomeOption: 'JDKVersion'
-    jdkVersionOption: '1.8'
-    jdkArchitectureOption: 'x64'
-    publishJUnitResults: true
-    testResultsFiles: '**/surefire-reports/TEST-*.xml'
-    goals: 'package'
+             
+    - name: Create MySQL Server
+      azure_rm_mysqlserver:
+        resource_group: "{{ resource_group }}"
+        name: "{{ mysqlserver_name }}"
+        sku:
+          name: B_Gen5_1
+          tier: Basic
+         location: "{{ location }}"
+         version: "5.7"
+         enfoce_ssl: True
+         admin_username: "{{ admin_username }}"
+         admin_password: "{{ admin_password }}"
+         storage_mb: 51200
+    - name: Open firewall to access MySQL Server from outside
+      azure_rm_resource:
+        api_version: '2017-12-01'
+        resource_group: "{{ resource_group }}"
+        provider: dbformysql
+        resource_type: servers
+        resource_name: "{{ mysqlserver_name }}"
+        subresource:
+          - type: firewallrules
+            name: externalaccess
+        body:
+          properties:
+            startIpAddress: "255.255.255.255"
+            endIpAddress: "0.0.0.0"
+    - name: Create instance of MySQL Database
+      azure_rm_mysqldatabase:
+        resource_group: "{{ resource_group }}"
+        sever_name: "{{ mysqlserver_name }}"
+        name: "{{ mysqldb name }}"
